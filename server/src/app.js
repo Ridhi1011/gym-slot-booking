@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.js';
 import sessionRoutes from './routes/sessions.js';
 import bookingRoutes from './routes/bookings.js';
 import meRoutes from './routes/me.js';
+import waitlistRoutes from './routes/waitlist.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 
 export const app = express();
@@ -17,6 +18,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/me', meRoutes);
 app.use('/api', bookingRoutes); // /api/sessions/:id/bookings and /api/bookings/:id
+app.use('/api', waitlistRoutes);  // /api/sessions/:id/waitlist
 
 app.use(notFoundHandler);
 app.use(errorHandler);

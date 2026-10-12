@@ -80,6 +80,34 @@ export function cancelBooking(bookingId, userId) {
     );
     if (!rows[0]) throw conflict('This booking is already cancelled', 'ALREADY_CANCELLED');
 
-    return { booking: toBookingDto(rows[0]) };
+    // Same transaction, session still locked: hand the freed seat to the waitlist
+    const promoted = await promoteFromWaitlist(client, session);
+
+    return { booking: toBookingDto(rows[0]), promotedCount: promoted.length };
   });
+}
+
+// Fills free seats from the waitlist, oldest entry first.
+// Caller MUST already hold the session lock (see lockSession), which is why we
+// don't need SKIP LOCKED or retries here — nobody else can touch this waitlist now.
+export async function promoteFromWaitlist(client, session) {
+  if (session.has_started) return []; // never promote into a session that's running
+
+  const promoted = [];
+  let free = session.capacity - (await countConfirmed(client, session.id));
+
+  while (free > 0) {
+    const { rows } = await client.query(
+      `DELETE FROM waitlist
+        WHERE id = (SELECT id FROM waitlist WHERE session_id = $1 ORDER BY created_at, id LIMIT 1)
+        RETURNING user_id`,
+      [session.id],
+    );
+    if (!rows[0]) break; // waitlist is empty
+
+    const booking = await insertBooking(client, session.id, rows[0].user_id);
+    promoted.push(booking);
+    free--;
+  }
+  return promoted;
 }
