@@ -4,7 +4,7 @@ import { query } from '../db.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { validate } from '../middleware/validate.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
-import { AppError, conflict } from '../lib/errors.js';
+import { AppError } from '../lib/errors.js';
 import { GYM_TZ, gymToday } from '../lib/time.js';
 
 const router = Router();
@@ -68,27 +68,23 @@ router.get('/', requireAuth, validate({ query: listQuery }), asyncHandler(async 
 // local -> UTC conversion so Node's own timezone never matters.
 router.post('/', requireAuth, requireAdmin, validate({ body: createBody }), asyncHandler(async (req, res) => {
   const { date, hour } = req.valid.body;
-  try {
-    const { rows } = await query(
-      `WITH t AS (
-         SELECT ($1::date + make_interval(hours => $2)) AT TIME ZONE '${GYM_TZ}' AS starts_at
-       )
-       INSERT INTO sessions (starts_at)
-       SELECT starts_at FROM t WHERE starts_at > now()
-       RETURNING id, starts_at, capacity`,
-      [date, hour],
-    );
-    // Nothing inserted means the WHERE filtered it out: the time is in the past
-    if (!rows[0]) throw new AppError(422, 'SESSION_IN_PAST', 'Cannot create a session that has already started');
+  // A duplicate time hits sessions_starts_at_key -> 409 DUPLICATE_SESSION in the error handler
+  const { rows } = await query(
+    `WITH t AS (
+       SELECT ($1::date + make_interval(hours => $2)) AT TIME ZONE '${GYM_TZ}' AS starts_at
+     )
+     INSERT INTO sessions (starts_at)
+     SELECT starts_at FROM t WHERE starts_at > now()
+     RETURNING id, starts_at, capacity`,
+    [date, hour],
+  );
+  // Nothing inserted means the WHERE filtered it out: the time is in the past
+  if (!rows[0]) throw new AppError(422, 'SESSION_IN_PAST', 'Cannot create a session that has already started');
 
-    const s = rows[0];
-    res.status(201).json({
-      session: toSessionDto({ ...s, booked_count: 0, waitlist_count: 0, has_started: false, my_position: null }),
-    });
-  } catch (err) {
-    if (err.code === '23505') throw conflict('A session already exists at that time', 'DUPLICATE_SESSION');
-    throw err;
-  }
+  const s = rows[0];
+  res.status(201).json({
+    session: toSessionDto({ ...s, booked_count: 0, waitlist_count: 0, has_started: false, my_position: null }),
+  });
 }));
 
 export default router;

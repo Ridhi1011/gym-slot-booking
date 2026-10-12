@@ -23,4 +23,5 @@ export function validate(schemas) {
 }
 
 // Common param schema for routes like /sessions/:id
-export const idParams = z.object({ id: z.coerce.number().int().positive() });
+const positiveId = z.coerce.number({ error: 'must be a number' }).int('must be a whole number').positive('must be positive');
+export const idParams = z.object({ id: positiveId });

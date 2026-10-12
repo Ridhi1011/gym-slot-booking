@@ -5,7 +5,7 @@ import { query } from '../db.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { validate } from '../middleware/validate.js';
 import { requireAuth, signToken } from '../middleware/auth.js';
-import { conflict, unauthorized } from '../lib/errors.js';
+import { unauthorized } from '../lib/errors.js';
 
 const router = Router();
 
@@ -28,20 +28,16 @@ router.post('/register', validate({ body: registerBody }), asyncHandler(async (r
   const { name, email, password } = req.valid.body;
   const passwordHash = await bcrypt.hash(password, 10);
 
-  try {
-    // Role is hardcoded: registration can never create an admin
-    const { rows } = await query(
-      `INSERT INTO users (name, email, password_hash, role)
-       VALUES ($1, $2, $3, 'member')
-       RETURNING id, name, email, role`,
-      [name, email, passwordHash],
-    );
-    const user = rows[0];
-    res.status(201).json({ token: signToken(user), user: publicUser(user) });
-  } catch (err) {
-    if (err.code === '23505') throw conflict('An account with that email already exists', 'EMAIL_TAKEN');
-    throw err;
-  }
+  // Role is hardcoded: registration can never create an admin.
+  // A taken email hits users_email_key -> 409 EMAIL_TAKEN in the error handler.
+  const { rows } = await query(
+    `INSERT INTO users (name, email, password_hash, role)
+     VALUES ($1, $2, $3, 'member')
+     RETURNING id, name, email, role`,
+    [name, email, passwordHash],
+  );
+  const user = rows[0];
+  res.status(201).json({ token: signToken(user), user: publicUser(user) });
 }));
 
 router.post('/login', validate({ body: loginBody }), asyncHandler(async (req, res) => {
