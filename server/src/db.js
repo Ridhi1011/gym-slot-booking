@@ -1,7 +1,13 @@
 import pg from 'pg';
 import { config } from './config.js';
 
-export const pool = new pg.Pool({ connectionString: config.databaseUrl });
+// Neon only accepts TLS connections. Local Postgres usually has no TLS, so skip it there.
+const isLocal = /@(localhost|127\.0\.0\.1)[:/]/.test(config.databaseUrl);
+
+export const pool = new pg.Pool({
+  connectionString: config.databaseUrl,
+  ssl: isLocal ? false : { rejectUnauthorized: true },
+});
 
 // Shorthand for one-off queries outside a transaction
 export const query = (text, params) => pool.query(text, params);
