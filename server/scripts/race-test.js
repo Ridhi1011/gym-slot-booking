@@ -10,6 +10,7 @@ import { pool } from '../src/db.js';
 import { config } from '../src/config.js';
 import { signToken } from '../src/middleware/auth.js';
 import { generateCode } from '../src/lib/codes.js';
+import { GYM_TZ } from '../src/lib/time.js';
 
 const API_URL = process.env.API_URL || `http://localhost:${config.port}`;
 const RACERS = 25;
@@ -19,7 +20,7 @@ async function setup() {
   // Far-future slot at a random hour so repeated runs never clash with real sessions
   const { rows: [session] } = await pool.query(
     `INSERT INTO sessions (starts_at)
-     VALUES (date_trunc('hour', now()) + interval '400 days' + make_interval(hours => $1))
+     VALUES (date_trunc('hour', now(), '${GYM_TZ}') + interval '400 days' + make_interval(hours => $1))
      RETURNING id, capacity`,
     [Math.floor(Math.random() * 5000)],
   );

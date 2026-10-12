@@ -16,9 +16,14 @@ CREATE TABLE users (
 
 CREATE TABLE sessions (
   id         SERIAL PRIMARY KEY,
-  starts_at  TIMESTAMPTZ NOT NULL UNIQUE,       -- always on the hour, stored in UTC
+  starts_at  TIMESTAMPTZ NOT NULL UNIQUE,       -- stored in UTC
   capacity   INT NOT NULL DEFAULT 20 CHECK (capacity > 0),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Must start on the hour in gym time. India is UTC+5:30, so "on the hour in UTC" isn't enough.
+  CONSTRAINT sessions_on_the_hour CHECK (
+    date_part('minute', starts_at AT TIME ZONE 'Asia/Kolkata') = 0
+    AND date_part('second', starts_at AT TIME ZONE 'Asia/Kolkata') = 0
+  )
 );
 
 CREATE TABLE bookings (
