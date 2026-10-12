@@ -144,7 +144,7 @@ export default function MyBookingsPage() {
                     You’re <strong>#{w.position}</strong> in line. We’ll book you in automatically if a mat frees up.
                   </p>
                 </div>
-                <Button variant="secondary" size="sm" loading={pending === `w${w.id}`} disabled={!!pending} onClick={() => leave(w)}>
+                <Button variant="secondary" size="sm" className="w-full sm:w-auto" loading={pending === `w${w.id}`} disabled={!!pending} onClick={() => leave(w)}>
                   Leave waitlist
                 </Button>
               </li>
