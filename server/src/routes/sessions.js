@@ -31,6 +31,7 @@ export function toSessionDto(row) {
     seatsRemaining: Math.max(row.capacity - row.booked_count, 0),
     waitlistCount: row.waitlist_count,
     hasStarted: row.has_started,
+    hasEnded: row.has_ended ?? false,
     myBooking: row.my_booking_id
       ? { id: row.my_booking_id, code: row.my_code, checkedInAt: row.my_checked_in_at }
       : null,
@@ -45,6 +46,7 @@ router.get('/', requireAuth, validate({ query: listQuery }), asyncHandler(async 
   const { rows } = await query(
     `SELECT s.id, s.starts_at, s.capacity,
             s.starts_at <= now() AS has_started,
+            s.starts_at + interval '1 hour' <= now() AS has_ended,
             (SELECT count(*)::int FROM bookings b
               WHERE b.session_id = s.id AND b.status = 'confirmed') AS booked_count,
             (SELECT count(*)::int FROM waitlist w WHERE w.session_id = s.id) AS waitlist_count,
