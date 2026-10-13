@@ -2,8 +2,8 @@
 
 Booking system for a gym that runs one-hour sessions with 20 mats each. Members book or cancel online, join a waitlist if a session is full, and get a short code to show at the door. Admins create sessions, see who's booked and check people in.
 
-Live app: _add link_
-API: _add link_
+Live app: https://gym-slot-booking-eight.vercel.app
+API: https://gym-slot-booking-7nc0.onrender.com
 
 ## Stack
 
