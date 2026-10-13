@@ -6,6 +6,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { validate } from '../middleware/validate.js';
 import { requireAuth, signToken } from '../middleware/auth.js';
 import { unauthorized } from '../lib/errors.js';
+import { verifyGoogleCredential, findOrCreateGoogleUser } from '../services/googleAuth.js';
 
 const router = Router();
 
@@ -22,7 +23,12 @@ const loginBody = z.object({
   password: z.string().min(1, 'is required'),
 });
 
-const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role });
+// Google ID tokens are JWTs, typically ~1-2 KB
+const googleBody = z.object({
+  credential: z.string({ error: 'is required' }).min(1, 'is required').max(4096),
+});
+
+const publicUser =(u) => ({ id: u.id, name: u.name, email: u.email, role: u.role });
 
 router.post('/register', validate({ body: registerBody }), asyncHandler(async (req, res) => {
   const { name, email, password } = req.valid.body;
@@ -45,10 +51,18 @@ router.post('/login', validate({ body: loginBody }), asyncHandler(async (req, re
   const { rows } = await query('SELECT * FROM users WHERE email = $1', [email]);
   const user = rows[0];
 
-  // Same message for unknown email and wrong password so emails can't be probed
-  const ok = user && (await bcrypt.compare(password, user.password_hash));
+  // Same message for unknown email, wrong password and Google-only accounts
+  // (no password_hash) so emails can't be probed
+  const ok = user?.password_hash && (await bcrypt.compare(password, user.password_hash));
   if (!ok) throw unauthorized('Wrong email or password', 'INVALID_CREDENTIALS');
 
+  res.json({ token: signToken(user), user: publicUser(user) });
+}));
+
+// "Continue with Google": the client sends the ID token from Google's button
+router.post('/google', validate({ body: googleBody }), asyncHandler(async (req, res) => {
+  const profile = await verifyGoogleCredential(req.valid.body.credential);
+  const user = await findOrCreateGoogleUser(profile);
   res.json({ token: signToken(user), user: publicUser(user) });
 }));
 

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { homeFor, useAuth } from '../context/AuthContext.jsx';
 import Button from '../components/Button.jsx';
 import Field from '../components/Field.jsx';
+import GoogleSignInButton from '../components/GoogleSignInButton.jsx';
 import AuthLayout, { FormError } from './AuthLayout.jsx';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -16,7 +17,7 @@ function validate({ email, password }) {
 }
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -46,15 +47,27 @@ export default function LoginPage() {
     setSubmitting(true);
     setServerError('');
     try {
-      const user = await login(form.email.trim(), form.password);
-      // Go back to the page they were trying to open, if their role allows it
-      const from = location.state?.from;
-      const allowed = from && (user.role === 'admin' ? from.startsWith('/admin') : !from.startsWith('/admin'));
-      navigate(allowed ? from : homeFor(user), { replace: true });
+      goOn(await login(form.email.trim(), form.password));
     } catch (err) {
       setServerError(err.message);
       setSubmitting(false);
     }
+  }
+
+  async function onGoogleCredential(credential) {
+    setServerError('');
+    try {
+      goOn(await loginWithGoogle(credential));
+    } catch (err) {
+      setServerError(err.message);
+    }
+  }
+
+  // Go back to the page they were trying to open, if their role allows it
+  function goOn(user) {
+    const from = location.state?.from;
+    const allowed = from && (user.role === 'admin' ? from.startsWith('/admin') : !from.startsWith('/admin'));
+    navigate(allowed ? from : homeFor(user), { replace: true });
   }
 
   return (
@@ -79,6 +92,7 @@ export default function LoginPage() {
           {submitting ? 'Logging in…' : 'Log in'}
         </Button>
       </form>
+      <GoogleSignInButton onCredential={onGoogleCredential} text="continue_with" />
     </AuthLayout>
   );
 }

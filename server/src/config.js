@@ -14,4 +14,6 @@ export const config = {
   databaseUrl: required('DATABASE_URL'),
   jwtSecret: required('JWT_SECRET'),
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  // Optional: without it the Google sign-in endpoint answers 503 and the rest works as normal
+  googleClientId: process.env.GOOGLE_CLIENT_ID || null,
 };

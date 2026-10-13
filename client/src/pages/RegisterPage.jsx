@@ -4,6 +4,7 @@ import { homeFor, useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import Button from '../components/Button.jsx';
 import Field from '../components/Field.jsx';
+import GoogleSignInButton from '../components/GoogleSignInButton.jsx';
 import AuthLayout, { FormError } from './AuthLayout.jsx';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -21,7 +22,7 @@ function validate({ name, email, password, confirm }) {
 }
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -61,6 +62,18 @@ export default function RegisterPage() {
     }
   }
 
+  // Google sign-up: an existing account with the same email is reused, otherwise a member is created
+  async function onGoogleCredential(credential) {
+    setServerError('');
+    try {
+      const user = await loginWithGoogle(credential);
+      toast.success(`Welcome to MatSlot, ${user.name}!`);
+      navigate(homeFor(user), { replace: true });
+    } catch (err) {
+      setServerError(err.message);
+    }
+  }
+
   return (
     <AuthLayout
       title="Create your account"
@@ -82,6 +95,7 @@ export default function RegisterPage() {
           {submitting ? 'Creating account…' : 'Create account'}
         </Button>
       </form>
+      <GoogleSignInButton onCredential={onGoogleCredential} text="signup_with" />
     </AuthLayout>
   );
 }

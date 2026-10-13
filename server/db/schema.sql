@@ -9,7 +9,8 @@ CREATE TABLE users (
   id            SERIAL PRIMARY KEY,
   name          TEXT NOT NULL,
   email         TEXT NOT NULL UNIQUE,           -- stored lowercased by the app
-  password_hash TEXT NOT NULL,
+  password_hash TEXT,                           -- NULL for Google-only accounts
+  google_sub    TEXT UNIQUE,                    -- Google account id, NULL if never used Google
   role          TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('member', 'admin')),
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );

@@ -22,6 +22,7 @@ cd server
 cp .env.example .env        # set DATABASE_URL (Neon, keep sslmode=verify-full) and JWT_SECRET
 npm install
 npm run db:setup            # creates the tables (drops existing ones)
+npm run db:migrate          # applies db/migrations/*.sql (safe to re-run; needed for older databases)
 npm run seed                # demo data; safe to re-run
 npm run dev                 # API on http://localhost:4000
 
@@ -33,6 +34,19 @@ npm run dev                 # app on http://localhost:5173
 ```
 
 `CLIENT_ORIGIN` in `server/.env` must match the client URL (CORS only allows that origin).
+
+### Optional: Continue with Google
+
+Email/password works without this. To add the Google button:
+
+1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), configure the OAuth consent screen,
+   then **Create credentials → OAuth client ID → Web application**.
+2. Under **Authorized JavaScript origins** add `http://localhost:5173` (and your deployed frontend URL).
+   No redirect URI and no client secret are needed — this uses the Google Identity Services ID-token (popup) flow.
+3. Put the client ID in both `server/.env` (`GOOGLE_CLIENT_ID`) and `client/.env` (`VITE_GOOGLE_CLIENT_ID`),
+   run `npm run db:migrate` on an existing database, and restart both dev servers.
+
+If `VITE_GOOGLE_CLIENT_ID` is empty the button is hidden; if `GOOGLE_CLIENT_ID` is empty `/api/auth/google` returns 503.
 
 ## Test credentials
 
@@ -76,6 +90,7 @@ time, then deletes everything it created. Expected output: exactly 1 success, 24
 |--------|------|-----|-------|
 | POST | `/api/auth/register` | public | always creates a member |
 | POST | `/api/auth/login` | public | returns `{ token, user }` |
+| POST | `/api/auth/google` | public | `{ credential }` (Google ID token) → `{ token, user }` |
 | GET | `/api/auth/me` | any | |
 | GET | `/api/sessions?date=YYYY-MM-DD` | any | `seatsRemaining`, `myBooking`, `myWaitlistPosition` |
 | POST | `/api/sessions` | admin | `{ date, hour }` in gym time |
@@ -97,6 +112,11 @@ Errors always look like `{ "error": { "code": "SESSION_FULL", "message": "…" }
 - The waitlist is **FIFO** (by join time). Promotion is automatic on cancel; promoted members get a new code.
   A member can only join a waitlist when the session is full and they don't already hold a booking.
 - Admins cannot book sessions; admins are only created by the seed script.
+- **Google sign-in** is optional and members-only. The server verifies the ID token (signature, expiry, audience =
+  our client ID) and requires `email_verified`. It matches users by Google account id first, then by email — an existing
+  member with that email gets Google linked to their account (their password keeps working). Otherwise a new member
+  is created with no password; trying password login on that account gives the usual "Wrong email or password".
+  Google never creates or signs in an admin.
 - Cancelled bookings are kept for history. A member can rebook after cancelling if seats remain.
 - Sessions cannot be edited or deleted. Capacity is 20.
 - JWTs expire after 7 days and are kept in `localStorage`.

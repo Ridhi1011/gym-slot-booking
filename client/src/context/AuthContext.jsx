@@ -37,12 +37,21 @@ export function AuthProvider({ children }) {
     [handleAuth],
   );
 
+  // credential = the ID token from Google's button; the server verifies it
+  const loginWithGoogle = useCallback(
+    (credential) => api('/auth/google', { method: 'POST', body: { credential } }).then(handleAuth),
+    [handleAuth],
+  );
+
   const logout = useCallback(() => {
     tokenStore.clear();
     setUser(null);
   }, []);
 
-  const value = useMemo(() => ({ user, status, login, register, logout }), [user, status, login, register, logout]);
+  const value = useMemo(
+    () => ({ user, status, login, register, loginWithGoogle, logout }),
+    [user, status, login, register, loginWithGoogle, logout],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
