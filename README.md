@@ -61,17 +61,6 @@ If the client ID is missing, the button just doesn't show.
 
 There are also `member1` to `member22@matslot.app` (same password) used to fill up sessions. To see the waitlist working, log in as one of them, cancel their booking for tomorrow 07:00, and Rahul's page should show him booked within about 5 seconds.
 
-## Design note
-
-I went with Express and plain SQL so every query is easy to read and explain, and React + Tailwind to keep the UI simple.
-Tables: users, sessions (start time is unique), bookings (confirmed or cancelled, each with a unique code) and waitlist.
-All the booking rules live on the server in `server/src/services/`, the browser never decides anything.
-The tricky part is the 20-mat limit. Booking, cancelling and joining the waitlist all start with
-`SELECT ... FROM sessions WHERE id = $1 FOR UPDATE`, which locks that session row, so two requests for the last mat
-run one after the other and the second one sees the session is full.
-Waitlist promotion happens inside the same transaction as the cancel.
-As a backup, unique indexes stop duplicate bookings or waitlist entries even if the code has a bug.
-On the frontend the seat count updates straight away when you book and goes back if the server says no.
 
 ## Race test
 
@@ -103,26 +92,4 @@ It makes a test session with 19 of 20 mats taken, sends 25 booking requests at t
 
 Every error comes back in the same shape: `{ "error": { "code": "SESSION_FULL", "message": "..." } }`
 
-## Assumptions
 
-Some things weren't specified, so I decided these:
-
-- The gym is in India, so everything runs on IST. Times are stored in UTC and shown in IST.
-- A session counts as started at its start time. After that you can't book, cancel or join its waitlist.
-- Check-in only works during the session's hour, only once, and not for cancelled bookings.
-- Waitlist is first come, first served. When someone gets promoted they get a new code.
-- You can only join a waitlist if the session is full and you don't already have a booking for it.
-- Admins can't book sessions. Admin accounts only come from the seed script.
-- Google sign-in is only for members. If the Google email matches an existing member, it links to that account.
-- Cancelled bookings stay in the database as history. You can rebook after cancelling if there's space.
-- Sessions can't be edited or deleted for now.
-- Login tokens last 7 days and are stored in localStorage.
-
-## If I had more time
-
-- Proper automated tests for each rule, running in CI
-- Rate limiting on login and check-in
-- Notify members by email when they get off the waitlist
-- Let admins edit or cancel sessions
-- Move auth to httpOnly cookies instead of localStorage
-- Recurring sessions so admins don't have to create each one by hand
